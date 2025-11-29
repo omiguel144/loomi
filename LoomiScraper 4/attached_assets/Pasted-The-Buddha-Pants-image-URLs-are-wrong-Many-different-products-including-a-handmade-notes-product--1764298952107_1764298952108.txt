@@ -1,0 +1,36 @@
+The Buddha Pants image URLs are wrong. Many different products (including a handmade notes product) share the same DSC_6822.jpg image. That means the current Buddha Pants scraper is not targeting the main product image correctly.
+
+Please do the following:
+	1.	Open one Buddha Pants product URL that appears in buddhapants_raw.csv, such as:
+https://www.buddhapants.com/products/12-inch-notes-handmade-journals and
+https://www.buddhapants.com/products/black-savannah-flair-harem-pants.
+	2.	Inspect the HTML for each product page and identify:
+	•	The container that holds the main product media/gallery
+	•	The <img> that is the primary hero image, or the <meta property="og:image"> tag that points to the main product image.
+	3.	In the Buddha Pants scraper (the function that builds each product record, probably named something like extract_buddhapants_product or similar):
+	•	Change the logic for image_url so that:
+	•	It first tries to use <meta property="og:image"> as the main image URL.
+	•	If that is not present, it then selects the first <img> inside the product’s main media/gallery container.
+	•	It filters out any images whose src includes strings like "Why-Shop-Icons" or other generic site-wide icons.
+For example (rough pseudo-code):
+og = soup.select_one('meta[property="og:image"]')
+if og and og.get("content"):
+    image_url = og["content"]
+else:
+    candidates = [
+        img["src"]
+        for img in soup.select(".product__media img, .product-gallery img, img")
+        if img.get("src")
+    ]
+    # Filter out marketing icons and generic assets
+    filtered = [u for u in candidates if "Why-Shop-Icons" not in u]
+    image_url = filtered[0] if filtered else (candidates[0] if candidates else "")
+
+	4.	Keep gallery_image_urls as a semicolon- or pipe-separated list of all valid gallery images, again excluding these icon images.
+	5.	Re-run the Buddha Pants scraper only:
+python main.py buddhapants
+and confirm in the new buddhapants_raw.csv that:
+	•	The journal product uses a journal image, not a pants photo.
+	•	Different pants have different images when appropriate.
+
+	6.	Do not change the 19-column schema or any Banana Republic logic. Only correct the Buddha Pants image extraction.

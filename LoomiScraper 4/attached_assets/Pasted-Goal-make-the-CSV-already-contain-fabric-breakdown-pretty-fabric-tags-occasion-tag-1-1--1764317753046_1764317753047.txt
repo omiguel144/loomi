@@ -1,0 +1,139 @@
+Goal: make the CSV already contain:
+	•	fabric_breakdown_pretty
+	•	fabric_tags
+	•	occasion_tag
+
+1.1. Add helper functions in the main scraper file
+
+Put these near the top of main.py (or wherever rows are built), under the imports:
+import re
+
+NATURAL_KEYWORDS = {
+    "cotton": "cotton",
+    "linen": "linen",
+    "flax": "linen",
+    "wool": "wool",
+    "cashmere": "cashmere",
+    "alpaca": "alpaca",
+    "silk": "silk",
+    "bamboo": "bamboo",
+    "hemp": "hemp",
+}
+
+def parse_fiber_composition(materials_raw: str):
+    """
+    Input: '55% linen, 45% cotton'
+    Output: list of dicts sorted by percent desc
+    """
+    if not materials_raw:
+        return []
+
+    parts = re.split(r"[,/]+", materials_raw)
+    out = []
+    for part in parts:
+        part = part.strip()
+        m = re.match(r"(\d+)\s*%\s*(.+)", part, re.IGNORECASE)
+        if not m:
+            continue
+        pct = int(m.group(1))
+        fiber_raw = m.group(2).strip()
+        fiber_lower = fiber_raw.lower()
+
+        # map to family
+        family = None
+        for key, fam in NATURAL_KEYWORDS.items():
+            if key in fiber_lower:
+                family = fam
+                break
+
+        out.append(
+            {
+                "percent": pct,
+                "fiber_label": fiber_raw,
+                "fiber_family": family,
+            }
+        )
+
+    out.sort(key=lambda x: x["percent"], reverse=True)
+    return out
+
+
+def build_fabric_breakdown_pretty(parsed):
+    if not parsed:
+        return ""
+    return ", ".join(f"{p['percent']}% {p['fiber_label']}" for p in parsed)
+
+
+def build_fabric_tags(parsed):
+    families = {p["fiber_family"] for p in parsed if p["fiber_family"]}
+    if not families:
+        return ""
+    ordered = sorted(families)
+    return " + ".join(f.upper() for f in ordered)
+
+
+def classify_occasion(title: str, category: str):
+    text = f"{title or ''} {category or ''}".lower()
+
+    work_words = ["work", "office", "blazer", "trouser", "meeting", "suit"]
+    event_words = ["party", "event", "evening", "wedding", "gala", "cocktail"]
+    offduty_words = ["weekend", "relaxed", "lounge", "travel", "vacation", "casual", "yoga"]
+
+    score_work = sum(w in text for w in work_words)
+    score_event = sum(w in text for w in event_words)
+    score_off = sum(w in text for w in offduty_words)
+
+    if score_work >= score_event and score_work >= score_off and score_work > 0:
+        return "Work & Meetings"
+    if score_event >= score_work and score_event >= score_off and score_event > 0:
+        return "Events & Dinners"
+    if score_off > 0:
+        return "Off-Duty & Travel"
+
+    # default
+    return "Off-Duty & Travel"
+1.2. Extend the CSV columns
+
+Find where the scraper defines the CSV header (for example):
+fieldnames = [
+    "style_id",
+    "color_id",
+    "color_name",
+    "image_url",
+    "gallery_image_urls",
+    "product_url",
+    "brand_name",
+    "product_title",
+    "category",
+    "price_raw",
+    "currency",
+    "materials_raw",
+]
+Change it to include the three new columns:
+fieldnames = [
+    "style_id",
+    "color_id",
+    "color_name",
+    "image_url",
+    "gallery_image_urls",
+    "product_url",
+    "brand_name",
+    "product_title",
+    "category",
+    "price_raw",
+    "currency",
+    "materials_raw",
+    "fabric_breakdown_pretty",
+    "fabric_tags",
+    "occasion_tag",
+]
+1.3. Populate the new columns when writing each row
+
+Where each product row is built (something like row = { ... } just before writing to CSV), add:
+parsed_comp = parse_fiber_composition(product.get("materials_raw") or "")
+row["fabric_breakdown_pretty"] = build_fabric_breakdown_pretty(parsed_comp)
+row["fabric_tags"] = build_fabric_tags(parsed_comp)
+row["occasion_tag"] = classify_occasion(
+    product.get("product_title"), product.get("category")
+)
+Use whatever variable name holds the product dict (here product is a placeholder). The key detail is that materials_raw must be the raw fiber string from the site.

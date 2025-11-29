@@ -1,0 +1,94 @@
+Please update the Banana Republic scraper so that I do not lose products during deduplication. Right now all 8 scraped sweaters collapse into 1 row because style_id and color_name are the same (“d41d8cd98f00” + “Default”).
+
+1. Add a helper to derive a real style_id from the URL
+
+Somewhere near the top of the BR code (for example next to the BR-specific helpers), add: 
+from urllib.parse import urlparse, parse_qs
+
+def derive_banana_republic_style_id(product_url: str) -> str:
+    """
+    Derive a stable style_id from the Banana Republic product URL.
+    Example URL:
+      https://bananarepublic.gap.com/browse/product.do?pid=543262202&vid=1&pcid=5032&cid=5032
+    We use the pid as the style_id. If pid is missing, fall back to the full URL.
+    """
+    try:
+        parsed = urlparse(product_url)
+        qs = parse_qs(parsed.query)
+        pid = qs.get("pid", [""])[0].strip()
+        if pid:
+            return pid
+        # fallback: use the path if pid is missing
+        return parsed.path or product_url
+    except Exception:
+        return product_url
+2. Use this helper inside extract_banana_republic_data
+
+In extract_banana_republic_data (the function that parses the rendered HTML and returns one or more records), update how style_id and color_name are set.
+
+Right now you are either:
+	•	computing style_id from a hash of something that can be empty, or
+	•	setting a placeholder, which leads to d41d8cd98f00 for all products.
+
+Replace that logic with:
+def extract_banana_republic_data(html: str, product_url: str, config: dict) -> list[dict]:
+    soup = BeautifulSoup(html, "lxml")
+    records = []
+
+    # existing code to extract title, price, materials, image, etc.
+    # ...
+    product_title = ...
+    price_raw = ...
+    currency = ...
+    materials = ...
+    image_url = ...
+    gallery_image_urls = ...
+
+    # NEW: stable style_id derived from pid
+    style_id = derive_banana_republic_style_id(product_url)
+
+    # Keep color_name "Default" for now unless you already derive real colors
+    color_name = "Default"
+
+    record = {
+        "style_id": style_id,
+        "color_id": "",
+        "color_name": color_name,
+        "brand_name": "Banana Republic",
+        "source_site": "bananarepublic.gap.com",
+        "product_url": product_url,
+        "product_title": product_title,
+        "category": category or "sweaters",
+        "price_raw": price_raw,
+        "currency": currency or "USD",
+        "materials_raw_or_page_text": materials,
+        "materials_snippet": materials,
+        "image_url": image_url,
+        "gallery_image_urls": gallery_image_urls,
+        # populate any remaining required fields with existing logic or empty strings
+    }
+    records.append(record)
+    return records
+The key change is: style_id must now come from derive_banana_republic_style_id(product_url) and must never be the empty-string hash.
+
+3. Keep the existing dedup logic as-is
+
+Do not special-case Banana Republic in the dedup step. Leave this logic (or equivalent) unchanged:
+# Example: before saving the DataFrame
+before = len(df)
+df = df.drop_duplicates(subset=["style_id", "color_name"])
+removed = before - len(df)
+logger.info(f"Removed {removed} duplicate records (by style_id + color_name)")
+Because style_id will now be the pid (543262202, 543262232, etc.), each sweater will be a distinct style, and drop_duplicates will no longer collapse them into one row.
+
+4. Re-run Banana Republic and verify
+
+After making these changes, please run:
+python main.py bananarepublic
+I expect the log to show:
+	•	“Found 40 product links after scrolling”
+	•	“Found 8 unique products so far”
+	•	“Removed 0 duplicate records (by style_id + color_name)” or a very low number
+	•	“Saving 8 unique records to bananarepublic_raw.csv”
+
+And bananarepublic_raw.csv should contain one row per product (at least 8 rows for the initial test).

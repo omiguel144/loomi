@@ -1,0 +1,10 @@
+requests
+beautifulsoup4
+lxml
+pandas
+playwright
+colorthief
+pillow
+webcolors
+httpx
+h2

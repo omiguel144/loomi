@@ -1,0 +1,40 @@
+I want Banana Republic to scrape successfully even though the category pages are client-side rendered. Please:
+	1.	Add Playwright for Banana Republic only
+	•	Install and configure Python Playwright (or use the Replit template for Playwright if available).
+	•	Do not change the Buddha Pants scraper; it should continue using requests + BeautifulSoup.
+	2.	Create a BR-specific scraping path
+	•	In run_scraper(config), branch on config["parser_type"]:
+	•	If parser_type == "banana_republic", call a new function run_banana_republic_scraper(config) that uses Playwright.
+	•	Otherwise, keep the existing requests-based pipeline for Buddha Pants.
+	3.	Inside run_banana_republic_scraper(config)
+	•	For each URL in config["collection_urls"] (e.g. https://bananarepublic.gap.com/browse/women/sweaters?cid=5032):
+	•	Use Playwright to:
+	•	Launch Chromium in headless mode.
+	•	page.goto(collection_url, wait_until="networkidle").
+	•	Scroll to the bottom if necessary until all products load (e.g., loop page.evaluate("window.scrollBy(0, document.body.scrollHeight)") with short waits).
+	•	Once product tiles are loaded, query the DOM for product links. Use selectors like:
+	•	a[href*="/browse/product.do?pid="]
+	•	or whatever product tile <a> selector you see in the live DOM.
+	•	Collect all product URLs into a set of unique URLs.
+	•	For each product URL:
+	•	Either:
+	•	Reuse the same Playwright page to open the product page and grab the full HTML (page.content()), then pass that HTML string into the existing Banana Republic JSON parser you already implemented, or
+	•	If your existing Banana Republic parser expects a requests response.text, adapt it to accept an HTML string instead.
+	•	Extract:
+	•	style_id, product_title, category, materials_raw_or_page_text, materials_snippet
+	•	price_raw, currency
+	•	image_url, gallery_image_urls
+	•	color_id, color_name if available
+	•	Append rows into the same 19-column data structure you already use for Buddha Pants.
+	4.	Respect the existing CSV schema
+	•	Keep the same 19 columns and schema_version that Buddha Pants uses.
+	•	Keep output_file = "bananarepublic_raw.csv" so I can download BR data separately.
+	5.	Politeness and safety
+	•	Add a small random delay between product page visits (e.g. 1–2 seconds) in the Playwright scraper.
+	•	Keep the total number of products reasonable for tests (for example, stop after the first 30 products on the first run so I can check the CSV).
+
+After these changes, I should be able to run: python main.py bananarepublic
+
+and see:
+	•	“Found X unique products” where X > 0
+	•	bananarepublic_raw.csv with Banana Republic sweater rows.

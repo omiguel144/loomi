@@ -1,0 +1,107 @@
+Please improve the Banana Republic scraper output so it is Loomi-ready, without changing the schema.
+
+Right now, Banana Republic rows have:
+	•	category = "unknown"
+	•	is_apparel = False
+	•	color_name = "Default"
+
+I want the scraper itself to fix this, so every new CSV is clean by default.
+
+⸻
+
+1. Category detection for Banana Republic
+
+Please update the Banana Republic pipeline so it sets a meaningful category instead of "unknown".
+
+Implementation details:
+	1.	In the Banana Republic config, we already have category_keywords. Reuse that.
+	2.	Implement a helper like:
+def infer_category_from_title_and_url(product_title: str, product_url: str, config: dict) -> str:
+    title_lower = (product_title or "").lower()
+    url_lower = (product_url or "").lower()
+
+    # If the URL clearly indicates sweaters, use that first
+    if "/women/sweaters" in url_lower or "cid=5032" in url_lower:
+        return "sweaters"
+
+    # Use category_keywords from config
+    keywords = config.get("category_keywords", {})
+    for category, words in keywords.items():
+        for w in words:
+            if w.lower() in title_lower:
+                return category
+
+    # Fallback
+    return "sweaters"  # for this BR integration, default to sweaters instead of "unknown"
+	3.	In extract_banana_republic_data(...), after extracting product_title and before building the record dict, call:
+category = infer_category_from_title_and_url(product_title, product_url, config)
+	4.	In the record dict, set:
+"category": category,
+instead of "unknown" or an empty value.
+
+⸻
+
+2. Set is_apparel = True for Banana Republic sweaters
+
+Right now, Banana Republic rows show is_apparel = False, which will hide them if Loomi uses that flag to filter for clothing.
+
+Please:
+	1.	Identify where is_apparel is set before saving the DataFrame (for all sites). There is likely some logic like:
+df["is_apparel"] = df["category"].apply(...)
+	2.	Update this logic so that:
+
+	•	Any row with category in {"sweaters", "tops", "dresses", "pants", "skirts", "shorts", "jumpsuits"} sets is_apparel = True.
+	•	Accessories (bags, hats, shoes, etc.) remain False.
+
+For example:
+APPAREL_CATEGORIES = {
+    "sweaters",
+    "tops",
+    "dresses",
+    "pants",
+    "skirts",
+    "shorts",
+    "jumpsuits",
+}
+
+def infer_is_apparel(row):
+    cat = (row.get("category") or "").lower()
+    if cat in APPAREL_CATEGORIES:
+        return True
+    return False
+
+df["is_apparel"] = df.apply(infer_is_apparel, axis=1)
+If there is already an infer_is_apparel function, extend it to include "sweaters" and ensure Banana Republic rows are correctly marked True.
+
+⸻
+
+3. Keep color_name = "Default" for now (no change needed)
+
+For now, keep color_name as "Default" for Banana Republic. That is acceptable for Loomi’s first version, since:
+	•	there is still one row per style_id
+	•	all images and URLs are correct
+
+Later, we can add color-swatch parsing, but it is not required for Loomi integration.
+
+⸻
+
+4. Preserve schema and dedup behavior
+
+Do not change:
+	•	the column names
+	•	the total number of columns (19)
+	•	deduplication by ["style_id", "color_name"]
+
+Banana Republic style_id is already derived from the pid in the URL, which is good. With real categories and is_apparel set, Loomi can filter these products correctly.
+
+⸻
+
+5. Re-run and verify
+
+After making these changes, please run locally:
+python main.py bananarepublic
+
+and confirm that in bananarepublic_raw.csv:
+	•	category is "sweaters" (or another meaningful apparel category) instead of "unknown"
+	•	is_apparel is True for these rows
+	•	Schema and dedup stats at the end still look correct (no unexpected errors)

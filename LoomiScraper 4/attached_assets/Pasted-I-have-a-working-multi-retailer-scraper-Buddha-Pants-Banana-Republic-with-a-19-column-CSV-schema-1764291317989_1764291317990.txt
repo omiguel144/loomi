@@ -1,0 +1,116 @@
+I have a working multi-retailer scraper (Buddha Pants + Banana Republic) with a 19-column CSV schema. Buddha Pants already works well. I want to improve the Banana Republic path only, without changing the schema or breaking Buddha Pants.
+
+Please make the following changes inside the Banana Republic parser / Playwright pipeline.
+
+⸻
+
+1. Keep current behavior as baseline
+
+Do not change:
+	•	The 19 output columns or their names
+	•	The use of style_id as the Banana Republic pid
+	•	The Playwright collection-page logic that now works (scrolling and product link extraction)
+	•	The Buddha Pants workflow
+
+All changes below should extend the Banana Republic behavior, not replace the existing schema.
+
+⸻
+
+2. Improve color handling for Banana Republic (multiple rows per style)
+
+Right now each Banana Republic product produces exactly one row and color_name is always "Default". I want one row per color variant, with a real color_name when the page exposes color data.
+
+Implementation details:
+	1.	In the Banana Republic product-page extractor (the function that runs after page.goto(product_url, ...) and builds the record dict):
+	•	Use Playwright or BeautifulSoup on the rendered HTML to detect color swatches.
+	•	Look for swatch elements with selectors such as:
+"[data-colorname]", 
+".colorName",
+"[data-ga-label*='color']",
+"button[data-colorname]"
+It is fine if you need to inspect one product page first to discover the correct selectors.
+
+	2.	From these swatch elements, build a list of (color_id, color_name) items. For example:
+colors = []
+for el in swatch_elements:
+    name = el.get_attribute("data-colorname") or el.inner_text().strip()
+    if not name:
+        continue
+    # create a simple color_id (slug)
+    color_id = slugify(name)  # implement a small helper to lower/strip/replace spaces with "-"
+    colors.append((color_id, name))
+	3.	If no swatches are found, fall back to a single color:
+colors = [("default", "Default")]
+	4.	Emit one record per color by looping over this list. For each color:
+	•	Use the same style_id (derived from pid in the URL)
+	•	Set "color_id" and "color_name" from the pair above
+	•	Reuse the same images for all colors for now (you do not need to click each swatch to load color-specific images yet; just keep image_url and gallery_image_urls as they are).
+For example:
+records = []
+for color_id, color_name in colors:
+    record = {
+        "style_id": style_id,
+        "color_id": color_id,
+        "color_name": color_name,
+        # ... all the existing fields you already fill ...
+    }
+    records.append(record)
+Make sure the function returns a list of records and that the call site extends the master list accordingly.
+
+	5.	Keep the existing deduplication rule by ["style_id", "color_name"]. With proper color_name, there should be no unintended collapsing.
+
+⸻
+
+3. Verify and tighten category and is_apparel
+
+You already have category = "sweaters" for this scrape, but I want the logic explicit and robust.
+	1.	Ensure there is a helper like:
+def infer_category_from_title_and_url(product_title: str, product_url: str, config: dict) -> str:
+    title_lower = (product_title or "").lower()
+    url_lower = (product_url or "").lower()
+
+    if "/women/sweaters" in url_lower or "cid=5032" in url_lower:
+        return "sweaters"
+
+    # use config["category_keywords"] for fallback
+    for cat, keywords in config.get("category_keywords", {}).items():
+        for w in keywords:
+            if w.lower() in title_lower:
+                return cat
+
+    return "sweaters"  # safe default for this Banana Republic integration
+	2.	In the Banana Republic extractor, always call this helper and set:
+category = infer_category_from_title_and_url(product_title, product_url, config)
+record["category"] = category
+	3.	Confirm that is_apparel is computed centrally from category. If not, add a simple helper used for all retailers:
+APPAREL_CATEGORIES = {
+    "sweaters",
+    "tops",
+    "dresses",
+    "pants",
+    "skirts",
+    "shorts",
+    "jumpsuits",
+}
+
+def infer_is_apparel(category: str) -> bool:
+    return (category or "").lower() in APPAREL_CATEGORIES
+Then, before saving the DataFrame:
+
+df["is_apparel"] = df["category"].apply(infer_is_apparel)
+This should yield is_apparel = True for Banana Republic sweaters.
+
+⸻
+
+4. Keep image handling but ensure non-empty URLs
+
+For each Banana Republic record:
+	•	Ensure image_url is the primary hero image (what you already collect).
+	•	Ensure gallery_image_urls is a ;-separated string of URLs, not empty.
+If the gallery selector fails, fall back to a list containing only image_url.
+
+Example:
+if not gallery_image_urls:
+    gallery_image_urls = [image_url]
+
+record["gallery_image_urls"] = ";".join(gallery_image_urls)

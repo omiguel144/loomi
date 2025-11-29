@@ -1,0 +1,37 @@
+Please add first-class support for Banana Republic (bananarepublic.gap.com) using the BR product code I provided.
+	1.	Add a new SITE_CONFIG entry named "banana_republic" with at least:
+	•	base_url: "https://bananarepublic.gap.com"
+	•	collection_urls: placeholder list I can edit later (for now just use one women’s sweaters category URL).
+	•	list_selector and product_link_selector for the product-grid links on category pages.
+	2.	Implement a Banana Republic product parser that works on a single product page HTML:
+	•	Search response.text for the JSON string that starts with "styles":{" and ends right before the closing }] of that snippet (as seen in my BR Code.pdf).
+	•	Safely extract and json.loads that JSON into a Python dict.
+	•	Use the first style object in that dict (e.g. key "732207"):
+	•	brand_name = "Banana Republic".
+	•	product_title = styles[style_id]["description"].
+	•	category = styles[style_id]["merchandise_hierarchy"]["class_description"] (or similar field).
+	•	From styles[style_id]["copy_headers"]:
+	•	Find the entry where id == "fabric" or label == "Fabric & care".
+	•	Join its bullets list to build materials_raw (this will include "80% cotton, 20% silk." etc.).
+	3.	Extract price and currency:
+	•	From the schema.org JSON <script> ("@type": "Product"): take the first "offers" entry and use:
+	•	price_raw = offers[0]["price"]
+	•	currency = offers[0]["priceCurrency"]
+	4.	Extract gallery and hero images:
+	•	Use BeautifulSoup to find all <div class="pdp-photo-single-column-image">.
+	•	For each, get:
+	•	data-imageurl if present, or its child <img src> value.
+	•	Normalize to full URL using base_url when the value starts with /.
+	•	Store:
+	•	image_url = first image URL.
+	•	gallery_image_urls = ";"-joined list of all image URLs.
+	5.	Output to CSV in the same schema as Buddhapants:
+	•	Keep the existing columns:
+style_id, color_id, color_name, image_url, gallery_image_urls, product_url, brand_name, product_title, category, price_raw, currency, materials_raw, page_text.
+	•	For now, if per-color variants are hard to detect, use one row per product:
+	•	style_id = BR’s "style_id" from the JSON.
+	•	color_id / color_name can be left blank or set to "default" until we add color parsing.
+	6.	Error handling:
+	•	If the "styles" JSON or "fabric" header cannot be found, log a warning and skip that product rather than crashing.
+	7.	Config toggle:
+	•	Add a CLI argument or small constant (e.g. ACTIVE_SITE = "banana_republic") so I can switch between buddhapants and banana_republic without changing code in multiple places.

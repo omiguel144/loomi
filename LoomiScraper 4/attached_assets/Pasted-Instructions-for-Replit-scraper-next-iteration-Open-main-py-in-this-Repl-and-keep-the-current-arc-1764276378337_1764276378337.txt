@@ -1,0 +1,35 @@
+Instructions for Replit scraper (next iteration)
+
+Open main.py in this Repl and keep the current architecture and logging. Improve the scraper for Loomi integration as follows:
+
+	1.	Add a style slug column derived from product URL
+	•	For each row, compute a style_slug column as the last path segment of product_url after /products/, without query parameters.
+	•	Example:
+	•	URL: https://www.buddhapants.com/products/black-savannah-flair-harem-pants
+	•	style_slug: black-savannah-flair-harem-pants.
+	•	Insert style_slug right after style_id in the CSV.
+	2.	Improve color_name when possible
+	•	Continue to use variant data if available in the Shopify JSON.
+	•	If no explicit variant color name exists, try to infer a better color/print name from:
+	•	the variant title in JSON, or
+	•	the style_slug when it starts with a common color word (e.g., black-, white-, red-, navy-, olive-, etc.).
+	•	In that case, set color_name to the extracted color word (for example "Black") and keep the full product style in product_title.
+	•	Only fall back to using the full product title as color_name when there is no better signal.
+	3.	Add a short materials snippet column
+	•	Keep materials_raw_or_page_text as it is, but add a new column called materials_snippet.
+	•	To build materials_snippet:
+	•	Search the page text (or the current materials field) for the first line or sentence that contains both a fiber keyword (cotton, linen, wool, silk, hemp, cashmere, rayon, polyester) and either a percent sign % or the word organic.
+	•	If found, set materials_snippet to that line trimmed.
+	•	If nothing matches, fall back to the first 180–200 characters of materials_raw_or_page_text.
+	•	Ensure materials_snippet is never empty.
+	4.	Ensure gallery images remain clean and limited
+	•	Keep the existing gallery extraction, but enforce:
+	•	only URLs that contain /products/ or the style_slug;
+	•	at most 5 URLs per row in gallery_image_urls;
+	•	no duplicates.
+	•	Continue to set image_url as the first entry in the cleaned gallery list.
+	5.	Preserve current columns and add new ones
+	•	Final CSV should contain all current columns plus:
+	•	style_slug (after style_id)
+	•	materials_snippet (after materials_raw_or_page_text or near it).
+	•	Keep the overall behavior: same filename (buddhapants_raw.csv), same polite crawling, same summary logging.

@@ -1,0 +1,72 @@
+Great idea! Let me get strategic guidance on the best architecture for this "autonomous scraper" design:
+
+
+Designed multi-site scraper architecture
+
+Decided on scraper architecture
+This is a great direction! Here's the architecture I recommend:
+
+Autonomous Multi-Strategy Scraper Design
+Core Components:
+
+SiteProfile - Configuration for each site declaring:
+
+Metadata (name, base_url, output_file)
+Supported strategies in priority order (requests → playwright → api)
+Per-strategy settings (selectors, endpoints, delays)
+Strategy Classes - Pluggable scraping approaches:
+
+RequestsStrategy - Static HTML + embedded JSON (works in Replit)
+PlaywrightStrategy - Full browser rendering (local only)
+ApiStrategy - Direct API calls if available (fastest, most reliable)
+EnvironmentProbe - Detects capabilities:
+
+Is this Replit? (check REPL_ID)
+Is Playwright available? (try import + browser check)
+Are API keys configured?
+ScrapeManager - The orchestrator:
+
+Takes a site profile
+Filters to viable strategies for current environment
+Runs them in priority order with fallback on failure
+Reports clear status (success, needs_browser, blocked, etc.)
+How it works for your sites:
+
+Buddha Pants: strategies: [RequestsStrategy] → Works everywhere
+Banana Republic: strategies: [PlaywrightStrategy, RequestsStrategy] → Tries browser first, falls back gracefully
+Future API site: strategies: [ApiStrategy, RequestsStrategy] → API if key available, else scrape
+Benefits:
+
+Add new sites by just defining a SiteProfile (no core logic changes)
+Automatic environment detection and graceful degradation
+Clear user messaging when a method isn't available
+Created task list
+48 seconds of work
+Start building
+2 minutes ago
+2 minutes ago
+•
+Free
+Transitioned from Plan to Build mode
+
+Rollback here
+
+Changes
+
+Decided on scraper architecture design (5 seconds)
+The user approved the plan. Let me start building the autonomous multi-strategy scraper architecture. I have 7 tasks to complete:
+
+Create EnvironmentProbe class
+Define Strategy base class and implement RequestsStrategy, PlaywrightStrategy
+Refactor SITE_CONFIGS into SiteProfile dataclass
+Build ScrapeManager orchestrator
+Update main.py CLI
+Test both sites
+Update documentation
+Let me start by marking task 1 as in progress and building the core components. I'll work efficiently by creating the new architecture in a modular way.
+
+Since this is a significant refactor, I'll create a new file scraper_engine.py to house the new architecture components (EnvironmentProbe, Strategy classes, SiteProfile, ScrapeManager), then update main.py to use it.
+
+Let me start building!
+
+Let me build this autonomous multi-strategy scraper architecture. I'll start with the core components:

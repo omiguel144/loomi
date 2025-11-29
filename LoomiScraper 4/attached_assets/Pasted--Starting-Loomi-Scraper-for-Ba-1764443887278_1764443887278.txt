@@ -1,0 +1,77 @@
+======================================================================
+Starting Loomi Scraper for Banana Republic (Playwright mode)
+======================================================================
+
+Processing collection: https://bananarepublic.gap.com/browse/women?cid=5002
+DEBUG: Using config selector: a.product-card__link
+Scroll 1/10, found 0 links so far.
+No new links found, stopping scroll.
+Finished scrolling. Total links found with selector 'a.product-card__link': 0
+Added 0 unique products from https://bananarepublic.gap.com/browse/women?cid=5002
+
+Processing collection: https://bananarepublic.gap.com/browse/women/dresses-and-jumpsuits?cid=69883
+DEBUG: Using config selector: a.product-card__link
+Scroll 1/10, found 0 links so far.
+No new links found, stopping scroll.
+Finished scrolling. Total links found with selector 'a.product-card__link': 0
+Added 0 unique products from https://bananarepublic.gap.com/browse/women/dresses-and-jumpsuits?cid=69883
+
+Processing collection: https://bananarepublic.gap.com/browse/women/pants?cid=67595
+DEBUG: Using config selector: a.product-card__link
+Scroll 1/10, found 0 links so far.
+No new links found, stopping scroll.
+Finished scrolling. Total links found with selector 'a.product-card__link': 0
+Added 0 unique products from https://bananarepublic.gap.com/browse/women/pants?cid=67595
+
+Processing collection: https://bananarepublic.gap.com/browse/women/sweaters?cid=5032
+DEBUG: Using config selector: a.product-card__link
+Scroll 1/10, found 0 links so far.
+No new links found, stopping scroll.
+Finished scrolling. Total links found with selector 'a.product-card__link': 0
+Added 0 unique products from https://bananarepublic.gap.com/browse/women/sweaters?cid=5032
+
+Processing collection: https://bananarepublic.gap.com/browse/women/workwear?cid=1178917
+DEBUG: Using config selector: a.product-card__link
+Scroll 1/10, found 0 links so far.
+No new links found, stopping scroll.
+Finished scrolling. Total links found with selector 'a.product-card__link': 0
+Added 0 unique products from https://bananarepublic.gap.com/browse/women/workwear?cid=1178917
+
+Processing collection: https://bananarepublic.gap.com/browse/women/accessories?cid=1134528
+DEBUG: Using config selector: a.product-card__link
+Scroll 1/10, found 0 links so far.
+No new links found, stopping scroll.
+Finished scrolling. Total links found with selector 'a.product-card__link': 0
+Added 0 unique products from https://bananarepublic.gap.com/browse/women/accessories?cid=1134528
+
+Processing collection: https://bananarepublic.gap.com/browse/men?cid=5343
+DEBUG: Using config selector: a.product-card__link
+Scroll 1/10, found 0 links so far.
+No new links found, stopping scroll.
+Finished scrolling. Total links found with selector 'a.product-card__link': 0
+Added 0 unique products from https://bananarepublic.gap.com/browse/men?cid=5343
+
+Processing collection: https://bananarepublic.gap.com/browse/sale?cid=1014329
+DEBUG: Using config selector: a.product-card__link
+Scroll 1/10, found 0 links so far.
+No new links found, stopping scroll.
+Finished scrolling. Total links found with selector 'a.product-card__link': 0
+Added 0 unique products from https://bananarepublic.gap.com/browse/sale?cid=1014329
+
+Processing collection: https://bananarepublic.gap.com/
+DEBUG: Using config selector: a.product-card__link
+Scroll 1/10, found 0 links so far.
+No new links found, stopping scroll.
+Finished scrolling. Total links found with selector 'a.product-card__link': 0
+Added 0 unique products from https://bananarepublic.gap.com/
+
+Total unique product URLs to scrape: 0
+No records to save
+
+======================================================================
+SCRAPING COMPLETE
+Total color variants scraped: 0
+Failed products (could not extract data): 0
+Unique products processed: 0
+Output file: bananarepublic_raw.csv
+Schema version: 3

@@ -1,0 +1,31 @@
+Open main.py in this Repl and keep the current structure and logging, but improve the scraper for Loomi integration as follows:
+	1.	Real color / print names instead of "default"
+	•	Right now every row in buddhapants_raw.csv has color_name = "default".
+	•	Update the product parsing so that:
+	•	If the Shopify JSON on the page contains a variants array with color or print information, extract the color / print name from there.
+	•	If the page uses color swatches or a dropdown, extract the color / print names from those elements.
+	•	Set color_name to that value and build color_id as f"{style_id}-{slugified_color_name}".
+	•	If a product truly has only one color, still set color_name to a meaningful value when possible (for example the default variant title), not "default".
+	2.	Cleaner gallery images
+	•	gallery_image_urls currently includes many unrelated images from the page.
+	•	Restrict gallery extraction to true product photos only, for example:
+	•	image URLs that contain /products/ or the product handle
+	•	ignore icons, logos, social icons, and layout images.
+	•	Deduplicate URLs and keep them in a stable order.
+	•	Limit gallery_image_urls to the first 5 product photos to avoid very long strings.
+	•	Keep image_url as the first URL in the cleaned gallery list.
+	3.	Improve materials text field
+	•	materials_raw_or_page_text sometimes contains the entire page or is empty.
+	•	Add logic that tries to extract a more focused materials string:
+	•	look for elements or lines that contain fiber words (cotton, linen, wool, silk, hemp) or percentage symbols (%).
+	•	if found, join those lines into a concise materials_raw_or_page_text value.
+	•	only fall back to full page text when no materials snippet is found.
+	•	Ensure the field is never completely empty.
+	4.	Better price fields
+	•	Keep price_raw as it is, but also parse:
+	•	price as a numeric value (float) without the currency symbol.
+	•	currency as a code such as "USD".
+	•	Add price as an extra column in the CSV after price_raw. The final CSV should now have 13 columns.
+	5.	Preserve existing behavior
+	•	Keep the current CSV columns and logging format, just add the new price column and improved values for color_name, gallery_image_urls, and materials_raw_or_page_text.
+	•	Keep polite crawling (robots.txt respect, 1–2 second delay, error handling and summary at the end).

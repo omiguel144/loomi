@@ -1,0 +1,58 @@
+There are two issues with the Banana Republic output in bananarepublic_raw.csv:
+	1.	color_name is not meaningful (always “Default” or otherwise wrong).
+	2.	is_apparel is False even though these are sweaters.
+
+Please fix them at the scraper level without changing the 19-column schema.
+
+A. Ensure category is set and used to infer is_apparel
+	1.	Confirm that the Banana Republic extractor calls the category inference helper before building the record:
+category = infer_category_from_title_and_url(product_title, product_url, config)
+and that the record dict uses:
+"category": category,
+	2.	In the infer_is_apparel logic (where df["is_apparel"] is set), update it so that any row with category in:
+APPAREL_CATEGORIES = {
+    "sweaters",
+    "tops",
+    "dresses",
+    "pants",
+    "skirts",
+    "shorts",
+    "jumpsuits",
+}
+returns True. For example:
+
+def infer_is_apparel(row):
+    cat = (row.get("category") or "").lower()
+    return cat in APPAREL_CATEGORIES
+
+df["is_apparel"] = df.apply(infer_is_apparel, axis=1)
+
+	3.	For the current Banana Republic sweaters scrape, category should end up as "sweaters" and therefore is_apparel should be True in the final CSV.
+
+B. Make color_name less broken (simple version)
+
+For now, I do not need perfect per-color scraping, but I want color_name to be at least stable and not cause bad deduping.
+	1.	In extract_banana_republic_data, derive a basic color name from the DOM if possible. For example:
+color_el = soup.select_one("[data-colorname], .colorName")
+if color_el:
+    color_name = color_el.get_text(strip=True)
+else:
+    color_name = "Default"
+
+Use this color_name when building the record:
+"color_name": color_name,
+	2.	Keep the existing dedup logic by ["style_id", "color_name"], but ensure:
+
+	•	style_id is the pid from the URL (as already implemented).
+	•	color_name is at least either a real color label or “Default”, not empty.
+
+	3.	Re-run:
+python main.py bananarepublic
+
+and confirm in bananarepublic_raw.csv that:
+	•	category is "sweaters" (not "unknown")
+	•	is_apparel is True for Banana Republic rows
+	•	color_name is no longer obviously broken (either a real color name where available, or “Default” as a consistent fallback).
+
+Please fix any errors that arise while making these changes so the scraper runs end-to-end and saves a clean bananarepublic_raw.csv.
+

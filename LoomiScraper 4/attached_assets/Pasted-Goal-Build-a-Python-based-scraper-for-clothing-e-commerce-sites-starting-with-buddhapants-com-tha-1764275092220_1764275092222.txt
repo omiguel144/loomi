@@ -1,0 +1,135 @@
+Goal
+
+Build a Python-based scraper for clothing e-commerce sites, starting with buddhapants.com, that:
+	•	Crawls product listing pages
+	•	Scrapes product detail pages
+	•	Extracts all colors/prints and their images
+	•	Saves everything to a CSV
+	•	Produces one row per color/print variant
+
+This script will feed a Loomi product catalog. Design for Buddha Pants first, but keep it configurable so I can reuse it for other clothing sites.
+
+⸻
+
+1. General technical requirements
+	•	Language: Python
+	•	Libraries: requests, beautifulsoup4, pandas
+	•	Interface: command-line only, no UI, no web server
+	•	Running python main.py should:
+	•	Crawl the configured site
+	•	Print progress
+	•	Write a CSV file (see schema below) in the project folder
+
+⸻
+
+2. Configurable settings
+
+Put a clear CONFIG section at the top of main.py where I can edit:
+	•	BASE_URL (for example "https://www.buddhapants.com")
+	•	COLLECTION_URLS – list of category/listing URLs to crawl
+	•	CSS selectors for:
+	•	product links on listing pages
+	•	product title on product pages
+	•	price text
+	•	category (if available)
+	•	main product image(s)
+	•	color/print swatches or variant elements
+	•	materials or description text (or a generic container for full page text)
+
+This CONFIG makes it possible to adapt the scraper to other clothing sites by editing selectors instead of rewriting logic.
+
+⸻
+
+3. Output format: one row per color/print
+
+The scraper must produce one CSV row per color or print variant of a product.
+
+CSV filename: buddhapants_raw.csv
+
+Columns:
+	•	style_id
+	•	A stable identifier for the product style (for example the product handle in the URL).
+	•	Same value for all colors/prints of that product.
+	•	color_id
+	•	Unique per color/print.
+	•	Can be style_id plus a slugified color name.
+	•	color_name
+	•	For example: "Black", "Forest Green", "Cloud Print".
+	•	image_url
+	•	Main image URL for this color/print (the hero image for that variant).
+	•	gallery_image_urls
+	•	All image URLs for this color/print, joined with |.
+	•	Example: "https://.../image1.jpg|https://.../image2.jpg|https://.../image3.jpg".
+	•	product_url
+	•	URL for this color/print.
+	•	If each color has its own URL, store that.
+	•	If all colors share one URL, store the shared product URL.
+	•	brand_name
+	•	For Buddha Pants, just "Buddha Pants".
+	•	product_title
+	•	Style name, for example "Classic Harem Pant".
+	•	category
+	•	For example "Pants", "Jumpsuit".
+	•	If not obvious, leave blank.
+	•	price_raw
+	•	Price as shown on the page, including currency symbol if needed (for example "$108").
+	•	currency
+	•	Parsed currency code if possible ("USD"), else leave blank.
+	•	materials_raw_or_page_text
+	•	A text blob that includes fabric composition.
+	•	If there is a specific materials section, use that.
+	•	If not, store the full page text so I can have an LLM extract the materials later.
+
+⸻
+
+4. Crawling logic
+
+4.1 Listing pages
+	•	Loop over all COLLECTION_URLS.
+	•	For each listing page:
+	•	Fetch the HTML with polite headers and timeouts.
+	•	Parse it with BeautifulSoup.
+	•	Find all product links using the configured selector (for example a[href*="/products/"]).
+	•	Normalize links to full URLs (BASE_URL + href where needed).
+	•	Store each unique product URL in a set to avoid duplicates.
+	•	Use a delay of 1–2 seconds between requests.
+
+4.2 Product pages
+For each unique product URL:
+	•	Fetch the page with requests.
+	•	Parse with BeautifulSoup.
+	•	Extract:
+	•	product_title using the configured selector.
+	•	price_raw using the configured selector.
+	•	category if possible.
+	•	A text block for materials_raw_or_page_text. This can be a specific section or full page text.
+	•	Extract color/print variants and their images:
+Handle both patterns below if possible in structure:
+Pattern A: each color has its own URL
+	•	If the site uses ?variant= or separate URLs per color, treat the main product URL as the style and the variant URLs as color URLs.
+	•	For each variant URL, extract the color name and all images.
+Pattern B: one URL with many colors on the same page
+	•	Look for color swatch elements (buttons, list items, etc.) with data- attributes such as data-color or similar.
+	•	Or detect a JSON <script> block that includes a variants array with color names and images.
+	•	For each color/print variant, extract:
+	•	color_name
+	•	a main image_url for that color
+	•	any other gallery images
+	•	For each color/print variant, append a row to a rows list with all fields described in section 3.
+	•	Use a delay of 1–2 seconds between product requests.
+
+⸻
+
+5. Politeness and robustness
+	•	Respect robots.txt.
+	•	Use a custom User-Agent string.
+	•	Handle network errors with simple retries or error messages.
+	•	Log progress: print when you visit a listing page and when you visit a product URL.
+
+If some fields are missing for a product, do not crash. Just leave those fields blank and continue.
+
+⸻
+
+6. Final behavior
+
+When I run:

@@ -1,0 +1,42 @@
+Please help me handle the Banana Republic limitation cleanly and set things up so I can run that scraper locally instead of in Replit.
+	1.	Add a clear runtime guard for Banana Republic on Replit
+In run_banana_republic_scraper(config), before launching Playwright, add a simple environment check so that if the code runs on Replit it prints a clear message and exits instead of trying to launch Firefox.
+For example:
+import os
+import sys
+
+def run_banana_republic_scraper(config):
+    # Temporary guard for Replit environment
+    if os.environ.get("REPL_ID"):
+        print("\n[Banana Republic Scraper]\n")
+        print("Headless browser scraping for Banana Republic is not supported in this Replit environment")
+        print("because the required system libraries for Playwright Firefox/Chromium are not available.")
+        print("You can still run: python main.py buddhapants here.")
+        print("To scrape Banana Republic, run this project locally on your own machine.")
+        return
+    # existing Playwright logic below this line...
+
+This keeps the code intact but stops Replit from trying to launch a browser it cannot support.
+
+	2.	Generate a requirements.txt for local use
+Create a requirements.txt file that includes all Python dependencies needed to run the scraper locally, including Playwright. For example:
+requests
+beautifulsoup4
+lxml
+playwright
+If the project already uses additional libraries (logging helpers, CSV utilities, etc.), include them too.
+
+	3.	Add a local setup guide for Banana Republic
+Create a markdown file named LOCAL_BANANA_REPUBLIC_SETUP.md in the repo. In that file, write step-by-step instructions for running the Banana Republic scraper on a local machine (macOS as the main case), including:
+	•	Clone or download this project.
+	•	Create and activate a virtual environment.
+	•	pip install -r requirements.txt
+	•	playwright install firefox  (or chromium, depending on what the code uses)
+	•	Run:
+		python main.py bananarepublic
+	•	Where to find the bananarepublic_raw.csv output file.
+Make sure the guide notes that Buddha Pants scraping works inside Replit, while Banana Republic scraping must run locally or on another server that has the necessary system libraries.
+
+	4.	Keep Buddha Pants fully working in Replit
+Confirm that: python main.py buddhapants
+still works inside Replit and continues to produce buddhapants_raw.csv with the correct 19-column schema.

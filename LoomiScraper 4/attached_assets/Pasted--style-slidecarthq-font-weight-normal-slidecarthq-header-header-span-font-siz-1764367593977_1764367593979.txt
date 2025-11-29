@@ -1,0 +1,102 @@
+<style>
+  #slidecarthq * {
+  font-weight: normal;
+}
+  #slidecarthq header.header span {
+    font-size: 16px;
+  }
+  #slidecarthq .slidecarthq {
+    max-width: 600px;
+}
+#slidecarthq .header {
+    padding: 10px 30px;
+}
+  #slidecarthq header.header>span {
+    display: flex;
+    align-self: center;
+    flex-direction: row;
+    gap: 4px;
+  }
+  #slidecarthq header.header span {
+    font-size: 20px;
+    font-weight: 500;
+    text-transform: uppercase;
+  }
+  #slidecarthq header.header span.cart-count {
+    font-size: 11px;
+    font-weight: 700;
+    color: #ffffff;
+    width: 24px;
+    height: 24px;
+    background: #000000;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #slidecarthq header.header span.cart-count:empty {
+    display: none;
+  }
+  #slidecarthq .items .item .quantity-selector button {
+    width: 24px;
+    height: 24px;
+  }
+  #slidecarthq .items .item .quantity-selector input {
+    height: 24px;
+    width: 30px;
+  }
+  #slidecarthq .note {
+    order: 11;
+  }
+  #slidecarthq footer.footer {
+    order: 12;
+  }
+  #slidecarthq .item .title, #slidecarthq .item .title a,
+  #slidecarthq .upsell-text a {
+    text-transform: uppercase;
+  }
+  #slidecarthq .item .title, #slidecarthq .item .title a {
+    font-weight: 400;
+}
+    #slidecarthq .item {
+        padding: 10px 15px;
+    }
+    #slidecarthq .item img {
+    width: 120px;
+    height: 130px;
+    }
+
+    #slidecarthq .footer-row span .footer-code,
+    #slidecarthq .item .discount-allocations-flex-1,
+    html body #slidecarthq .item .variants-p, html body #slidecarthq .item .properties-key-value li, html body #slidecarthq .item .properties-key-value li span, html body #slidecarthq .quantity-selector input, html body #slidecarthq .upsell-text p, html body #slidecarthq .upsell-options label, html body #slidecarthq .subscription-option label, html body #slidecarthq .upsell-options-header p, html body #slidecarthq .footer-checkbox  {
+      font-size: 11px;
+    }
+    #slidecarthq .item .properties-key-value {
+      display: flex;
+    margin-top: 7px;
+    align-content: center;
+    align-items: center;
+    gap: 7px;
+}
+#slidecarthq .item .properties-key-value li+li {
+margin-top: 0px;
+}
+#slidecarthq .item .main {
+    justify-content: space-around;
+}
+#slidecarthq .rewards-tiers-labels>.rewards-tiers-container>.rewards-tiers-item-icon {
+    border-width: 2px;
+}
+#slidecarthq .rewards-progress,
+#slidecarthq .rewards-progress-bar  {
+    height: 4px;
+}
+#slidecarthq .items .item .quantity-selector input {
+    height: 32px;
+    width: 32px;
+}
+#slidecarthq .items .item .quantity-selector button {
+height: 32px;
+width: 32px;
+}
+</style>

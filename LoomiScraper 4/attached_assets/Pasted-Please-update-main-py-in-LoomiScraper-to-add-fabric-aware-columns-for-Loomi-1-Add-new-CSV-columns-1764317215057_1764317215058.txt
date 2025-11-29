@@ -1,0 +1,160 @@
+Please update main.py in LoomiScraper to add fabric-aware columns for Loomi.
+
+1. Add new CSV columns
+In the list of field names used when writing the final CSV (the fieldnames = [...] or similar), append these new columns:
+    "composition_pretty",       # e.g. "55% linen, 45% cotton"
+    "fiber_tags",               # e.g. "LINEN + COTTON"
+    "natural_fiber_percent",    # numeric, 0–100
+    "synthetic_fiber_percent",  # numeric, 0–100
+    "is_100pct_natural",        # true/false
+    "occasion_tag",             # e.g. "Work & Meetings"
+2. Add helper functions near the top of main.py
+import re
+
+NATURAL_FIBERS = {
+    "cotton", "organic cotton",
+    "linen", "flax",
+    "wool", "merino wool", "alpaca", "cashmere",
+    "silk", "mulberry silk",
+    "hemp", "bamboo", "ramie"
+}
+
+SYNTHETIC_FIBERS = {
+    "polyester", "nylon", "elastane", "spandex",
+    "acrylic", "viscose", "rayon", "modal",
+}
+
+FIBER_FAMILY_MAP = {
+    "cotton": "LINEN + COTTON",   # will normalize below
+}
+# actually map single fiber → family label
+FIBER_FAMILY_MAP = {
+    "cotton": "COTTON",
+    "organic cotton": "COTTON",
+    "linen": "LINEN",
+    "flax": "LINEN",
+    "wool": "WOOL",
+    "merino wool": "WOOL",
+    "alpaca": "ALPACA",
+    "cashmere": "CASHMERE",
+    "silk": "SILK",
+    "mulberry silk": "SILK",
+    "hemp": "HEMP",
+    "bamboo": "BAMBOO",
+}
+
+PERCENT_PATTERN = re.compile(r"(\\d+)\\s*%\\s*([^,.;]+)")
+
+def parse_materials(materials_raw: str):
+    """
+    Return a list of (percent:int, fiber_slug:str) from a materials string.
+    """
+    if not materials_raw:
+        return []
+    results = []
+    for m in PERCENT_PATTERN.finditer(materials_raw):
+        pct = int(m.group(1))
+        fiber = m.group(2).strip().lower()
+        # remove words like "shell", "body", "exclusive of decoration"
+        fiber = re.sub(r"\\b(shell|body|exclusive.*)$", "", fiber).strip()
+        results.append((pct, fiber))
+    return results
+
+def summarize_fibers(materials_raw: str):
+    parts = parse_materials(materials_raw)
+    if not parts:
+        return {
+            "composition_pretty": "",
+            "fiber_tags": "",
+            "natural_fiber_percent": None,
+            "synthetic_fiber_percent": None,
+            "is_100pct_natural": None,
+        }
+
+    # combine same fibers
+    totals = {}
+    for pct, fiber in parts:
+        totals[fiber] = totals.get(fiber, 0) + pct
+
+    # sort by percent descending
+    ordered = sorted(totals.items(), key=lambda x: -x[1])
+
+    # pretty string "55% linen, 45% cotton"
+    composition_pretty = ", ".join(
+        f"{pct}% {fiber}" for fiber, pct in ordered
+    )
+
+    # compute natural vs synthetic shares
+    natural_pct = 0
+    synthetic_pct = 0
+    families = set()
+    for fiber, pct in ordered:
+        if any(fiber.startswith(s) for s in SYNTHETIC_FIBERS):
+            synthetic_pct += pct
+        elif any(fiber.startswith(n) for n in NATURAL_FIBERS):
+            natural_pct += pct
+        # tag family
+        for key, fam in FIBER_FAMILY_MAP.items():
+            if fiber.startswith(key):
+                families.add(fam)
+
+    # clamp to 0–100 in case of messy data
+    natural_pct = max(0, min(100, natural_pct))
+    synthetic_pct = max(0, min(100, synthetic_pct))
+
+    # 100% natural rule:
+    #  - natural fibers sum to 100
+    #  - no clear synthetic fibers present (synthetic_pct == 0)
+    is_100pct_natural = bool(natural_pct == 100 and synthetic_pct == 0)
+
+    fiber_tags = " + ".join(sorted(families)) if families else ""
+
+    return {
+        "composition_pretty": composition_pretty,
+        "fiber_tags": fiber_tags,
+        "natural_fiber_percent": natural_pct,
+        "synthetic_fiber_percent": synthetic_pct,
+        "is_100pct_natural": is_100pct_natural,
+    }
+
+def guess_occasion_tag(title: str, category: str) -> str:
+    text = f"{title or ''} {category or ''}".lower()
+    # very simple first cut; we can refine later
+    if any(word in text for word in ["blazer", "trouser", "office", "work", "button-down", "turtleneck"]):
+        return "Work & Meetings"
+    if any(word in text for word in ["dress", "gown", "party", "cocktail", "evening"]):
+        return "Events & Dinners"
+    if any(word in text for word in ["jogger", "hoodie", "sweatshirt", "lounge", "relaxed", "weekend"]):
+        return "Off-Duty & Travel"
+    # default bucket for now
+    return "Off-Duty & Travel"
+
+3. Use these helpers when building each row
+
+In the part of the code where each record dict is built for a product (the loop that fills all the CSV fields), after you set record["materials_raw"], call the new helpers and put their values into the record:
+    materials_raw = record.get("materials_raw") or product.get("materials_raw")
+
+    fiber_info = summarize_fibers(materials_raw or "")
+    record["composition_pretty"] = fiber_info["composition_pretty"]
+    record["fiber_tags"] = fiber_info["fiber_tags"]
+    record["natural_fiber_percent"] = fiber_info["natural_fiber_percent"]
+    record["synthetic_fiber_percent"] = fiber_info["synthetic_fiber_percent"]
+    record["is_100pct_natural"] = fiber_info["is_100pct_natural"]
+
+    record["occasion_tag"] = guess_occasion_tag(
+        record.get("product_title") or "",
+        record.get("category") or "",
+    )
+Please make sure:
+	•	All new fields are included both in fieldnames and in each record.
+	•	Types are JSON/CSV safe (numbers or strings, booleans as true/false).
+	•	Existing behavior for Buddha Pants and Banana Republic is unchanged besides these new columns.
+
+After edits, run:
+python main.py buddhapants
+python main.py bananarepublic
+and confirm that the new CSVs contain:
+	•	composition_pretty like 55% linen, 45% cotton
+	•	fiber_tags like LINEN + COTTON
+	•	correct natural_fiber_percent and is_100pct_natural
+	•	an occasion_tag for each row.

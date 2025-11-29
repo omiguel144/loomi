@@ -1,0 +1,93 @@
+Looking at the latest scraper output, I can see several improvements have been made (schema v3), but there are still some critical issues for Loomi integration:
+
+Critical Issues
+1. Fabric Breakdown Math Error (Still Present)
+fabric_breakdown_pretty: "180% cotton, 20% linen"
+This is still wrong! It should be "80% cotton, 20% linen". The parser is adding an extra "1" somewhere.
+
+2. Incorrect Category Mapping
+Many products are categorized as apparel when they shouldn't be:
+
+"12 Inch Notes | Handmade" journals → is_apparel: True, category: Apparel, subcategory: Tops
+This should be is_apparel: False, category: Accessories
+3. Missing Materials Data
+Berkeley Hoodie shows:
+
+materials_raw_or_page_text: (empty)
+scrape_status: missing_materials
+Yet the product page clearly states "100% Organic Cotton". The scraper needs to handle different page layouts.
+
+4. Sizes Data Quality Issues
+sizes_available: S|L|L|L|L|S|0|S|L|L|L|2|12|1|4
+This is messy and has duplicates/noise. Should be cleaned to: XS|S|M|L|XL
+
+5. Waist Sizes Empty When Shouldn't Be
+For pants products, waist_sizes is always empty. If these are elastic-waist pants without numeric sizing, that's fine, but if any have waist measurements, capture them.
+
+6. Occasion Tags Too Generic
+Everything is "Off-Duty & Travel". Need variety:
+
+Journals/accessories → could be "Work & Meetings" or "Everyday"
+Joggers → "Off-Duty & Travel" ✓
+Hoodies → "Off-Duty & Travel" ✓
+Formal items → "Work & Meetings"
+What's Good (Keep This)
+✅ Color analysis - color_name_normalized, dominant_hex, pattern_type, color_family are excellent
+✅ Fiber percentages - The natural/synthetic split logic is correct (when materials are found)
+✅ Schema version tracking - v3 shows good iteration
+✅ Description field - Auto-generated descriptions are useful
+✅ Care level - "Easy Care" mapping is appropriate for cotton/linen
+
+Recommended Fixes for Scraper
+Fix 1: Fabric Breakdown Regex
+In your fabric parser, check for this bug:
+
+# Current (buggy): "80% cotton" → extracts as "180%"
+# Fix: Ensure percentage capture doesn't include leading digits
+pattern = r'(\d+)%\s*([a-zA-Z\s]+)'  # Correct
+# NOT: r'(\d*)(\d+)%' which could cause "80" → "180"
+Fix 2: Category Detection
+# Add category detection logic:
+if 'journal' in title.lower() or 'notebook' in title.lower():
+    is_apparel = False
+    category = 'Accessories'
+    subcategory = 'Accessories'
+elif 'bag' in title.lower() or 'purse' in title.lower():
+    is_apparel = False
+    category = 'Accessories'
+    subcategory = 'Accessories'
+Fix 3: Size Normalization
+def normalize_sizes(raw_sizes: str) -> str:
+    """Convert 'S|L|L|L|L|S|0|S|L|L|L|2|12|1|4' → 'XS|S|M|L|XL'"""
+    size_set = set(s.strip() for s in raw_sizes.split('|') if s.strip())
+    # Filter out noise (single digits, duplicates)
+    valid_sizes = {s for s in size_set if len(s) <= 3 and s.upper() in ['XS','S','M','L','XL','XXL','0','2','4','6','8','10','12']}
+    return '|'.join(sorted(valid_sizes, key=lambda x: size_order.get(x, 99)))
+Fix 4: Fallback Material Extraction
+If structured material fields fail, try extracting from product title/description:
+
+# Fallback patterns:
+if not materials_found and '100% cotton' in description.lower():
+    natural_fiber_percent = 100
+    fiber_families = ['cotton']
+Fix 5: Occasion Tag Variety
+def infer_occasion(title: str, category: str, description: str) -> str:
+    text = f"{title} {description}".lower()
+    
+    if 'journal' in text or 'notebook' in text or 'office' in text:
+        return 'Work & Meetings'
+    elif 'yoga' in text or 'lounge' in text or 'jogger' in text:
+        return 'Off-Duty & Travel'
+    elif 'formal' in text or 'elegant' in text:
+        return 'Parties & Events'
+    elif 'beach' in text or 'vacation' in text:
+        return 'Vacation & Leisure'
+    else:
+        return 'Off-Duty & Travel'  # default
+Priority Order for Fixes
+Fix fabric percentage math (breaks Loomi filtering completely)
+Fix category detection (journals showing as tops is confusing)
+Add material fallback extraction (too many missing_materials)
+Normalize sizes (current data has noise)
+Diversify occasion tags (nice-to-have)
+The scraper is close but these data quality issues would cause problems in Loomi's filtering, search, and product display.

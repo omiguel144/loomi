@@ -1,0 +1,55 @@
+The Buddha Pants image URLs in buddhapants_raw.csv show too many duplicates. For example, this single URL:
+
+https://www.buddhapants.com/cdn/shop/products/FlapBlackKristin-8.jpg?v=1681929445
+
+is used for 10 different products, including:
+	•	Berkeley Hoodie
+	•	Big Sur Jogger
+	•	Geneva Dress
+	•	Scarf With Pocket 2.0
+	•	Tie Dye Jumpsuit
+
+This means the Buddha Pants scraper is not reliably selecting the product-specific hero image.
+
+Please improve the Buddha Pants image extraction logic as follows, without changing the 19-column schema or any Banana Republic code:
+	1.	In the Buddha Pants product-detail scraper (the function that builds each row for buddhapants_raw.csv), update how image_url and gallery_image_urls are chosen.
+	2.	For a given product URL, do this:
+	•	Derive the product handle from the URL, e.g.
+handle = product_url.rstrip("/").split("/")[-1]
+	•	Collect candidate images using specific product-gallery selectors, such as:
+candidates = []
+for img in soup.select(".product__media img, .product-gallery img, img"):
+    src = img.get("src") or img.get("data-src")
+    if not src:
+        continue
+    src = src.strip()
+    # Ensure absolute URL
+    if src.startswith("//"):
+        src = "https:" + src
+    elif src.startswith("/"):
+        src = "https://www.buddhapants.com" + src
+    candidates.append(src)
+	3.	Filter out obvious non-product or generic images:
+	•	Exclude any src that looks like a marketing icon or a generic asset, for example if the path contains:
+"Why-Shop-Icons", "icon", "logo", "sprite", or /collections/.
+	•	Optionally, prefer images in the /cdn/shop/products/ path.
+	4.	Use a handle-based preference:
+	•	From the remaining candidates, prefer those whose filename or path contains the product handle (or a close variant), e.g.:
+preferred = [u for u in candidates if handle.replace('-', '').lower() in u.replace('-', '').lower()]
+•	If preferred is not empty, set:
+	•	image_url = first item in preferred
+	•	gallery_image_urls = all items in preferred joined by | or ;
+	•	If preferred is empty, fall back to:
+	•	first item in candidates (after filtering out icons), but do not include duplicates like the same FlapBlackKristin-8.jpg for every product unless that image actually belongs to that product page.
+
+	5.	Keep the CSV schema:
+	•	Do not rename columns. Continue to output:
+	•	image_url as a single URL string
+	•	gallery_image_urls as a separator-joined string of all gallery images
+	6.	After making these changes, please re-run:
+python main.py buddhapants
+and confirm that in the new buddhapants_raw.csv:
+	•	image_url values are more diverse (fewer duplicates).
+	•	Products like Berkeley Hoodie, Big Sur Jogger, Geneva Dress, and Scarf With Pocket 2.0 each have image URLs that match their own product pages.
+
+Do not touch the Banana Republic scraper or the Loomi integration code; only adjust the Buddha Pants image selection logic.

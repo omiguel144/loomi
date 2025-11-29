@@ -1,0 +1,133 @@
+Looking at your scraper output and the Loomi app's current implementation, here are the key improvements needed for seamless integration:
+
+Required Additional Columns
+1. Audience/Demographics (Critical for filtering)
+audience
+Values: Women, Men, Girls, Boys, Baby, Home
+
+Look for keywords in product title/category: "women's", "men's", "kids", "unisex"
+Default to Women if ambiguous
+2. Subcategory (Critical for filtering)
+subcategory
+Values: Tops, Bottoms, Dresses, Sweaters, Outerwear, Sleepwear, Accessories
+
+Map from your category field (pants→Bottoms, top→Tops, jumpsuit→Outerwear, etc.)
+3. Sizes Available (Critical for filtering)
+sizes_available
+Pipe-separated list: XS|S|M|L|XL|XXL or 0|2|4|6|8 or 28|30|32|34
+
+Extract from product page size selector
+This powers the size filter in FilterSheet.tsx
+4. Waist Sizes (For pants filtering)
+waist_sizes
+Pipe-separated: 26|28|30|32|34|36|38
+
+Only for pants/bottoms with numeric waist sizing
+Leave empty for non-pants items
+5. Length Options (For fit preferences)
+length
+Values: Petite, Standard, Tall, or empty
+
+Extract from variant/option names
+6. Natural Fiber Analysis (CRITICAL - your parsing needs work)
+Your current fabric_breakdown_pretty has errors like "180% cotton, 20% linen" (should be 80%).
+
+Add these columns:
+
+natural_fiber_percent
+synthetic_fiber_percent
+is_100pct_natural
+is_loomi_approved
+fiber_families
+synthetic_fibers_present
+Example for "80% cotton, 20% linen":
+
+natural_fiber_percent: 100
+synthetic_fiber_percent: 0
+is_100pct_natural: true
+is_loomi_approved: true
+fiber_families: cotton|linen (pipe-separated)
+synthetic_fibers_present: (empty)
+7. Care Level (For filtering/display)
+care_level
+Values: Easy Care, Gentle, Delicate
+
+Based on fiber type:
+Cotton/Linen → Easy Care
+Wool/Alpaca → Gentle
+Cashmere/Silk → Delicate
+8. Product Description (For SEO/display)
+description
+2-3 sentences about the product (not just copy-pasted marketing text)
+
+Fixes Needed in Current Output
+Fix 1: Fabric Breakdown Parsing
+Your parser is outputting "180% cotton" which is impossible. Fix your regex/parsing logic:
+
+# In your scraper's parse_fabric function:
+# Current buggy pattern: "80% cotton, 20% linen" → "180% cotton, 20% linen"
+# Fix: Ensure you're capturing fiber percentages correctly
+The column should be:
+
+fabric_breakdown_pretty
+80% Cotton + 20% Linen   # NOT "180% cotton"
+Fix 2: Fabric Tags Logic
+Current output shows redundant tags like "COTTON + LINEN" when it should be more descriptive:
+
+100% Cotton → 100% COTTON or PURE COTTON
+80% Cotton + 20% Linen → COTTON + LINEN BLEND
+95% Wool → PREMIUM WOOL
+Fix 3: Occasion Tags
+Your occasion_tag is always Off-Duty & Travel or Work & Meetings. Add variety:
+
+Analyze product title/description for keywords:
+"yoga", "lounge", "casual" → Off-Duty & Travel
+"formal", "office", "professional" → Work & Meetings
+"party", "evening", "gown" → Parties & Events
+"beach", "vacation", "resort" → Vacation & Leisure
+Recommended New Columns for Future
+Product Metadata
+reviews_count        # Number of reviews
+avg_rating          # Average star rating (1-5)
+top_selling         # Boolean: is this a bestseller?
+Sustainability
+certifications      # Pipe-separated: GOTS|OEKO-TEX|Fair Trade
+origin_country      # Where fiber is sourced
+sustainability_note # Brief text about eco-credentials
+Inventory/Availability
+in_stock           # Boolean
+low_stock_warning  # Boolean: fewer than X units
+estimated_delivery # Text: "2-3 business days"
+Integration Checklist
+Before ingesting into Loomi:
+
+✅ Fix fiber percentage parsing (180% → 80%)
+✅ Add audience column (Women/Men/Kids/etc.)
+✅ Add subcategory column (Tops/Bottoms/Dresses/etc.)
+✅ Add sizes_available pipe-separated list
+✅ Add natural fiber analysis columns
+✅ Fix fabric_tags to be more descriptive
+✅ Diversify occasion_tag based on keywords
+✅ Add care_level based on fiber type
+✅ Add proper description (2-3 sentences)
+Validation Script
+Create a validation step in your scraper:
+
+def validate_row(row):
+    errors = []
+    
+    # Check fiber math
+    if row['fabric_breakdown_pretty']:
+        percentages = extract_percentages(row['fabric_breakdown_pretty'])
+        total = sum(percentages)
+        if total > 100:
+            errors.append(f"Invalid total: {total}%")
+    
+    # Check required fields
+    required = ['audience', 'subcategory', 'sizes_available', 'natural_fiber_percent']
+    for field in required:
+        if not row.get(field):
+            errors.append(f"Missing {field}")
+    
+    return errors
+This will ensure your scraper output integrates seamlessly with Loomi's filtering, sorting, and display logic.
